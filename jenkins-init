@@ -158,7 +158,7 @@ sleep 0.3
 # Test Suit on jenkins.
 
 echo "-----------------------------------------------"
-echo "              Checking Qjenkins                "
+echo "              Checking jenkins                "
 echo "-----------------------------------------------"
 # check: jenkins config file in location.
 
@@ -177,10 +177,10 @@ else
    rc=$fc
 fi
 sleep 0.3
-# Check: Qjenkins's version
+# Check: jenkins's version
 
 WAR_VERSION=$(grep "/version" /opt/jenkins/jenkins_home/config.xml | cut -d ">" -f2 | cut -d "<" -f1)
-echo -n Qjenkins war version is $WAR_VERSION
+echo -n jenkins war version is $WAR_VERSION
 success
 echo
 sleep 0.3 
