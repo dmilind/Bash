@@ -1,0 +1,382 @@
+#!/bin/bash
+# jenkins service test.
+# This script checks all required services, ports, and processes are up and running. Script can be used in monitoring jenkins application. 
+# Run this script against jenkins hosts where jenkins is installed.
+# Run this script after jenkins deployed. 
+#BEGIN
+#export SYSTEMCTL_SKIP_REDIRECT=1
+# Calling functions from library
+
+source /etc/init.d/functions
+HOSTNAME=$(hostname -s)
+DOMAIN=$(hostname -d)
+rc=0
+fc=1
+execute_nicely() {
+    local -r msg=$1
+    local -r cmd=$2
+    local -i rc=0
+
+    echo -n "$msg"
+    local output
+    output=$($cmd 2>&1)
+    rc=$?
+
+    if [ $rc -ne 0 ]; then
+        echo
+        echo -n "$output"
+        failure
+        echo
+    else
+        success
+        echo
+    fi
+
+    return $rc
+}
+
+start() {
+   execute_nicely \
+   "Starting jenkins" \
+   "/etc/init.d/jenkins start" \
+   || return $?
+
+    return 0
+}
+
+stop() {
+   execute_nicely \
+   "Shtting down jenkins" \
+   "/etc/init.d/jenkins stop" \
+   || return $?
+
+    return 0
+}
+
+status() {
+   local -i rc=0
+   execute_nicely \
+   "Status of jenkins" \
+   "/etc/init.d/jenkins status" 
+    if [ $? -ne $rc ]; then
+      rc=$?
+    fi 
+
+    return $rc
+}
+
+test() {
+echo
+if [[ "$HOSTNAME" = jenkins* ]]; then
+  echo    "###############################################"
+  echo    "#            RUNNING SMOKE TEST               #"
+  echo    "###############################################"
+else
+  exit 1
+fi
+sleep 0.3
+# Test suit on nginx.
+
+echo "-----------------------------------------------"
+echo "               Checking Nginx                  "
+echo "-----------------------------------------------"
+# Check: domain specific certs in /etc/nginx/ssl
+for VALUE in key pem  
+do
+  if [ -s /etc/nginx/ssl/"$DOMAIN.$VALUE" ]; then
+    echo -n "$DOMAIN.$VALUE is 0 size and valid"
+    success
+    logger -t jenkins-init "Cert:$DOMAIN.$VALUE  test=Present" 
+    sleep 0.3
+    echo
+  else
+    echo -n "$DOMAIN.$VALUE is invalid or absent"
+    failure
+    logger -t jenkins-init "Certs:$DOMAIN.$VALUE test=Absent"
+    sleep 0.3
+    echo
+    rc=$fc
+  fi
+done
+sleep 0.3
+
+# Check: nginx service status
+systemctl status nginx &> /dev/null
+#rc=$?
+if [ $? -eq 0 ]; then
+  echo -n "Nginx Process is running"
+  success
+  logger -t jenkins-init "Process:nginx  test=Running"
+  sleep 0.3
+  echo
+else
+  echo -n "Nginx process is not running"
+  failure
+  logger -t jenkins-init "Process:nginx  test=Stopped"
+  sleep 0.3
+  echo
+  rc=$fc
+fi
+sleep 0.3
+
+# check: respective ports assigned to nginx. 
+
+PORT_FFT=$(netstat -nlp | grep nginx | grep 443 | cut -d ":" -f2 | cut -d " " -f1)
+PORT_EZ=$(netstat -nlp | grep nginx | grep 80 | grep -m1 "" | grep 80 | cut -d ":" -f2 | cut -d " " -f1)
+NGINX_SVC=$(netstat -nlp | grep nginx | grep -m1 " " | cut -d "/" -f2 | cut -d ":" -f1)
+
+if [ "$NGINX_SVC" = "nginx" ] && [ "$PORT_FFT" -eq 443 ]; then
+  echo -n "Nginx is using port $PORT_FFT"
+  success
+  logger -t jenkins "nginx-port:443  test=Assigned"
+  sleep 0.3
+  echo
+else
+  echo -n "Nginx is not using port $PORT_FFT"
+  failure
+  logger -t jenkins "nginx-port:443  test=Unassigned"
+  sleep 0.3
+  echo
+  rc=$fc
+fi
+sleep 0.3
+if [ "$NGINX_SVC" = "nginx" ] && [ "$PORT_EZ" -eq 80 ]; then
+  echo -n "Nginx is using port $PORT_EZ"
+  success
+  logger -t jenkins "nginx-port:80  test=Assigned"
+  sleep 0.3
+  echo
+else
+  echo -n "Nginx is not using port $PORT_EZ"
+  failure
+  logger -t jenkins "nginx-port:80  test=unassigned"
+  sleep 0.3
+  echo
+  rc=$fc
+fi
+sleep 0.3
+# Test Suit on jenkins.
+
+echo "-----------------------------------------------"
+echo "              Checking Qjenkins                "
+echo "-----------------------------------------------"
+# check: jenkins config file in location.
+
+if [ -f /opt/jenkins/jenkins_home/config.xml ]; then
+   echo -n "Jenkins config file is placed"
+   success
+   logger -t jenkins-init "file:Config   test=Present"
+   sleep 0.3
+   echo
+else
+   echo -n "Jenkins config file missing" 
+   failure
+   logger -t jenkins-init "file :Config  test=Absent"
+   sleep 0.3
+   echo
+   rc=$fc
+fi
+sleep 0.3
+# Check: Qjenkins's version
+
+WAR_VERSION=$(grep "/version" /opt/jenkins/jenkins_home/config.xml | cut -d ">" -f2 | cut -d "<" -f1)
+echo -n Qjenkins war version is $WAR_VERSION
+success
+echo
+sleep 0.3 
+# check: defult job available in jobs folder
+
+if [ -d /opt/jenkins/jenkins_home/jobs/Deploy-Jobs ]; then
+   echo -n "Default job is present"
+   success
+   logger -t jenkins-init "job:Deploy-Jobs  test=Present"
+   sleep 0.3
+   echo
+else
+  echo -n "Default job is missing"
+  failure
+  logger -t jenkins-init "job:Deploy-Jobs   test=Absent"
+  sleep 0.3
+  echo
+  rc=$fc
+fi
+sleep 0.3
+# check: directory structure is proper for jenkins
+Jhome=(/opt/jenkins/jenkins_home)
+Jinstall=(/opt/jenkins/jenkins_install)
+Jwork=(/opt/jenkins_workdir)
+for dir in $Jhome $Jinstall $Jwork
+do
+  if [ -d $dir ]; then
+    echo -n "$dir is placed properly"
+    success
+    logger -t jenkins-init "type=$dir  test=Placed Correctly"
+    sleep 0.3
+    echo
+  else
+    echo -n "$dir is not placed properly"
+    failure
+    logger -t jenkins-init "type=$dir  test=Placed Wrongly"
+    sleep 0.3
+    echo
+    rc=$fc
+  fi
+done
+sleep 0.3
+# Check: Old version where jenkins_workdir is inside jenkins dir.
+if [ -d /opt/jenkins/jenkins_workdir ]; then
+  echo -n "/opt/jenkins/jenkins_workdir:From old version"
+  warning
+  logger -t jenkins-init "type=/opt/jenkins/jenkins_workdir  test=Placed Wrongly"
+  echo
+fi
+sleep 0.3
+# Check: jenkins service status
+systemctl status jenkins &>/dev/null
+#rc=$?
+if [ $? -eq 0 ]; then 
+  echo -n "Service jenkins is active"
+  success 
+  logger -t jenkins-init "type=service-jenkins test:Running"
+  echo
+else
+  echo -n "Service jenkins is stopped"
+  failure
+  logger -t jenkins-init "type=service-jenkins test:Stopped"
+  echo
+  rc=$fc
+fi
+sleep 0.3
+# Test suit on ansible
+echo "-----------------------------------------------"
+echo "              Checking Ansible                 "
+echo "-----------------------------------------------"
+# check: ansible user is present
+user=$(getent passwd ansible | cut -d ":" -f1)
+if [ $user = ansible ]; then
+  echo -n "Ansible user exists"
+  success
+  logger -t jenkins-init "user:Ansible   test=Present"
+  sleep 0.3
+  echo
+else
+  echo -n "Ansible user is missing"
+  failure
+  logger -t jenkins-init "user:Ansible   test=Absent"
+  sleep 0.3
+  echo
+  rc=$fc
+fi
+sleep 0.3
+# check: user id for ansible.
+user_id=$(id ansible | cut -d "=" -f2 | cut -d "(" -f1)
+if [ $user_id -eq 1098 ]; then
+  echo -n "Ansible user id is 1098"
+  success
+  logger -t jenkins-init "user:Id  test=Correct"
+  sleep 0.3
+  echo
+else
+  echo -n "Ansible user id is not appropriate"
+  failure
+  logger -t jenkins-init "user:Id test=Incorrect"
+  sleep 0.3
+  echo
+  rc=$fc
+fi
+sleep 0.3
+# check: ansible is installed on hosts
+ansible --version &> /dev/null
+#rc=$?
+if [ $? -eq 0 ]; then
+  echo -n "Ansible is installed"
+  success
+  logger -t jenkins-init "package:Ansible  test=Installed"
+  sleep 0.3
+  echo
+else
+  echo -n "Ansible might not be installed"
+  failure
+  logger -t jenkins-init "package:Ansible  test=missing"
+  sleep 0.3
+  echo
+  rc=$fc
+fi
+sleep 0.3
+# Test suit on connection
+echo "-----------------------------------------------"
+echo "            Checking Connections               "
+echo "-----------------------------------------------" 
+# Check: connection to host
+curl http://host &> /dev/null
+#rc=$?
+if [ $? -eq 0 ]; then
+  echo -n "host is reachable from jenkins"
+  success
+  logger -t jenkins-init "connection to: host  test=connected"
+  sleep 0.3
+  echo 
+else 
+  echo -n "host is not reachable from jenkins"
+  failure
+  logger -t jenkins-init "connection to: host  test=dropped"
+  sleep 0.3
+  echo
+  rc=$fc
+fi
+# check: connection to swarmmaster01/02/03 and swamworker01/02/03
+for host in swarmmaster01 swarmmaster02 swarmmaster03 swarmworker01 swarmworker02 swarmworker03 
+do 
+  curl http://$host:8080 &> /dev/null
+#  rc=$?
+  if [ $? -eq 0 ]; then
+    echo -n "$host is reachable from jenkins"
+    success
+    logger -t jenkins-init "connection to: $host  test=connected"
+    sleep 0.3
+    echo
+  else
+    echo -n "$host is not reachable from jenkins"
+    failure
+    logger -t jenkins-init "connection to: $host  test=dropped"
+    sleep 0.3
+    echo
+    rc=$fc
+  fi
+  
+done
+
+
+return $rc
+}
+
+case "$1" in
+  start)
+    start
+    exit $?
+    ;;
+  stop)
+    stop
+    exit $?
+    ;;
+  restart)
+    stop
+    sleep 2
+    start
+    exit $?
+    ;;
+  status)
+    status
+    exit $?
+    ;;
+  test)
+    test
+    exit $?
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart|status|test}"
+    exit $?
+esac
+return $rc
+# End
+
