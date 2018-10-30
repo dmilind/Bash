@@ -13,7 +13,7 @@ export COLOR_PURPLE='\e[0;35m'
 export COLOR_LIGHT_PURPLE='\e[1;35m'
 export COLOR_YELLOW='\e[0;33m'
 export CLICOLOR=1
-export LSCOLORS=ExFxBxDxCxegedabagacad
+export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 git_branch() {
   git branch 2>/dev/null | grep '^*' | colrm 1 2
 }
