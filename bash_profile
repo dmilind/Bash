@@ -17,6 +17,15 @@ export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 git_branch() {
   git branch 2>/dev/null | grep '^*' | colrm 1 2
 }
+git_status() {
+ RC=`git status --porcelain 2>/dev/null | grep "?" | wc -l`
+ if [[ $RC -eq 1 ]]; then 
+   echo "[✚]"
+   return 
+ else
+   exit 
+ fi 
+}
 
-export PS1="\[${UC}\]\u \[${COLOR_CYAN}\]\W\[${COLOR_YELLOW}\] \$(git_branch) \[${COLOR_LIGHT_GREEN}\]$ → \[${COLOR_NC}\] "
+export PS1="\[${UC}\]\u \[${COLOR_CYAN}\]\W\[${COLOR_PURPLE}\] \$(git_branch)\[${COLOR_RED}\]\$(git_status)\[${COLOR_LIGHT_GREEN}\] $ → \[${COLOR_NC}\]"
 
