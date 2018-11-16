@@ -18,8 +18,9 @@ git_branch() {
   git branch 2>/dev/null | grep '^*' | colrm 1 2
 }
 git_status() {
- RC=`git status --porcelain 2>/dev/null | grep "?" | wc -l`
- if [[ $RC -eq 1 ]]; then 
+ CHANGE=`git status --porcelain 2>/dev/null | grep "?" | wc -l`
+ MODIFY=`git status --porcelain 2>/dev/null | grep "M" | wc -l`
+ if [[ $CHANGE -eq 1 || $MODIFY -eq 1 ]]; then 
    echo "[✚]"
    return 
  else
