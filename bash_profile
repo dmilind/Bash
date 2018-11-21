@@ -20,7 +20,8 @@ git_branch() {
 git_status() {
  CHANGE=`git status --porcelain 2>/dev/null | grep "?" | wc -l`
  MODIFY=`git status --porcelain 2>/dev/null | grep "M" | wc -l`
- if [[ $CHANGE -eq 1 || $MODIFY -eq 1 ]]; then 
+ ADD=`git status --porcelain 2>/dev/null | grep "A" | wc -l`
+ if [[ $CHANGE -ne 0 || $MODIFY -ne 0 || $ADD -ne 0 ]]; then 
    echo "[✚]"
    return 
  else
