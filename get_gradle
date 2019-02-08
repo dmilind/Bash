@@ -3,7 +3,7 @@
 # Script to install and configure gradle on the local machine. Script can be executed,
 # directly from the URL where it is uploaded.
 # Run below command to get it in action.
-# ==> curl -s "https://URL" | bash
+# ==> curl -s "https://https://github.com/dmilind/Bash/blob/master/get_gradle" | bash
 # Install: stable
 # maintainer: Milind DHoke 
 
