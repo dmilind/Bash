@@ -1,0 +1,164 @@
+#!/bin/bash
+#
+# Script to install and configure gradle on the local machine. Script can be executed,
+# directly from the URL where it is uploaded.
+# Run below command to get it in action.
+# ==> curl -s "https://URL" | bash
+# Install: stable
+# maintainer: Milind DHoke 
+
+set -e
+
+# Global variables
+GRADLE_RELEASE_VERSION=4.8
+GRADLE_BINARY_ZIP_LOCATION="https://services.gradle.org/distributions/gradle-$GRADLE_RELEASE_VERSION-bin.zip" 
+GRADLE_PLATEFORM=$(uname)
+DISTRO=$( grep ID /etc/os-release | cut -d "=" -f2 | awk 'NR==1{print $1}' )
+CENTOS_JAVA_VERSION=java-1.8.0-openjdk
+UBUNTU_JAVA_VERSION=openjdk-8-jdk
+GRADLE_HOME=/opt/gradle
+
+global_java_installer(){
+  case "$GRADLE_PLATEFORM" in
+        Darwin)
+          echo "Install Java On MacOS by downloading proper dmg file. This Process Will Not Install Java On MacOS."
+          exit 1
+        ;;
+        Linux)
+          if [ "$DISTRO" == "ubuntu" ]; then
+            echo "Installing Java On Ubuntu..."
+            sudo apt-get install $UBUNTU_JAVA_VERSION -y &> /dev/null
+          else
+            echo "Installing Java On CentOS"
+            sudo yum install $JRE_VERSION -y &> /dev/null
+          fi
+        ;;
+        *)
+          echo "Supported OS Type Would Be either Fedora Or Debian"
+          exit 1
+        ;;
+  esac
+}
+
+global_gradle_installer(){
+# Download Binary From The URL
+# check Java is installed or not
+  java -version &> /dev/null
+  if [ $? -ne 0 ]; then
+    echo "Java Is Missing ==> [\xE2\x9C\x95] [Failure]\n"
+    exit 1
+  fi
+  curl --progress-bar -LOs $GRADLE_BINARY_ZIP_LOCATION
+  mkdir $GRADLE_HOME
+  unzip -q -d $GRADLE_HOME gradle-$GRADLE_RELEASE_VERSION-bin.zip
+  export PATH=$PATH:$GRADLE_HOME/gradle-$GRADLE_RELEASE_VERSION/bin/
+}
+
+echo "#####################################################################################################"
+echo "                                                                    ddddddd                          "
+echo "        GGGGGGGGGGGGG                                               d:::::d llllll                   "
+echo "     GGG::::::::::::G                                               d:::::d l::::l                   "
+echo "  G:::::GGGGGGGG::::G                                               d:::::d l::::l                   "
+echo " G:::::G       GGGGGG rrrrrrrrr           aaaaaaaaaaaaa     ddddddddd:::::d l::::l    eeeeeeeeeeeee  "
+echo "G:::::G               r:::::::::::::::::r aaaaaaaaa:::::a d:::::::::::::::d l::::l  e::::::eeeee:::ee"
+echo "G:::::G    GGGGGGGGGG r::::::rrrrr::::::r         a::::ad:::::::ddddd:::::d l::::l e::::::e     e::ee"
+echo "G:::::G        G::::G r:::::r           a::::aaaa::::::ad:::::d     d:::::d l::::l e::::::eeeeeeeeeee"
+echo " G:::::G       G::::G r:::::r          a::::a    a:::::ad:::::d     d:::::d l::::l e:::::::e         "
+echo "     GGG::::::GGG:::G r:::::r           a::::::::::aa:::a d::::::::ddd::::d l::::l  ee:::::::::::::e "
+echo "        GGGGGG   GGGG rrrrrrr            aaaaaaaaaa  aaaa  dddddddddddddddd llllllll  eeeeeeeeeeeeee "
+echo "#####################################################################################################"
+
+# Sanity Checks
+prereq(){
+  echo "Checking Java..."
+  if [ -z $(which java) ]; then
+    printf "Java Does Not Exist...Installing Now...\n"
+    global_java_installer
+    if [ $? -eq 0]; then
+      JAVA_VERSION=$(java -version 2>&1 | head -n 1 | awk -F '"' '{print $2}')
+      printf "%s\t Java $JAVA_VERSION Installed Successfully ==> [\xE2\x9C\x94] [Success]\n"
+    else
+      printf "%s\t Error Occured While Installing Java ==> [\xE2\x9C\x95] [Failure]\n"
+      exit 1
+    fi
+  else
+    printf "%s\t Java Setup ==> [\xE2\x9C\x94] [Exist]\n"
+  fi
+
+  echo "Checking Unzip..."
+  if [ -z $(which unzip) ]; then
+    printf "%s\t Unzip Does Not Exist...Installing Now...\n"
+    if [ "$DISTRO" == "ubuntu" ]; then
+      sudo apt-get install unzip -y &> /dev/null
+      if [ ! -z $(which unzip) ]; then
+        printf "%s\t Unzip Setup ==> [\xE2\x9C\x94] [Success]\n"
+      else
+        printf "%s\t Error Occured While Installing Unzip ==> [\xE2\x9C\x95] [Failure]\n"
+      fi
+    else
+      sudo yum install unzip -y &> /dev/null
+      if [ ! -z $(which unzip) ]; then
+        printf "%s\t Unzip Setup ==> [\xE2\x9C\x94] [Success]\n"
+      else
+        printf "%s\t Error Occured While Installing Unzip ==> [\xE2\x9C\x95] [Failure]\n"
+      fi
+    fi
+  else
+      printf "%s\t Unzip Setup ==> [\xE2\x9C\x94] [Exist]\n"
+  fi
+
+  echo "Checking Curl..."
+  if [ -z $(which curl) ]; then
+    echo "Curl Does Not Exist...Installing Now..."
+    if [ "$DISTRO" == "ubuntu" ]; then
+      sudo apt-get install curl -y &> /dev/null
+      if [ ! -z $(which curl) ]; then
+        printf "%s\t Unzip Setup ==> [\xE2\x9C\x94] [Success]\n"
+      else
+        printf "%s\t Error Occured While Installing Unzip ==> [\xE2\x9C\x95] [Failure]\n"
+      fi
+    else
+      sudo yum install curl -y &> /dev/null
+      if [ ! -z $(which curl) ]; then
+        printf "%s\t Unzip Setup ==> [\xE2\x9C\x94] [Success]\n"
+      else
+        printf "%s\t Error Occured While Installing Unzip ==> [\xE2\x9C\x95] [Failure]\n"
+      fi
+    fi
+  else
+    printf "%s\t Curl Setup ==> [\xE2\x9C\x94] [Exist]\n"
+  fi
+}
+
+# Main
+echo "Checking Gradle If Required Version Exists"
+if [ -z $(which gradle) ]; then
+  printf "%s\t Gradle Does Not Exist...Installing Now...\n"
+  prereq
+  if [ $? -ne 0 ]; then
+    echo "Error While Satisfying Prerequisites ==> [\xE2\x9C\x95] [Failure]\n"
+    exit 1
+  else
+    if [ -d /opt/gradle ]; then
+      echo "Cleaning Old Gradle Residue For Fresh Installation..."
+      rm -rf /opt/gradle/
+      printf "%s\t Clean Up ==> [\xE2\x9C\x94] [Success]\n"
+    fi
+    global_gradle_installer
+    if [ $? -eq 0 ]; then
+      CURRENT_GRADLE_VERSION=$(gradle -v)
+      printf "%s\t Gradle $CURRENT_GRADLE_VERSION Installed Successfully  ==> [\xE2\x9C\x94] [Success]\n"
+      rm -rf gradle-$GRADLE_RELEASE_VERSION-bin.zip
+    else
+      printf "%s\t Error Occured While Installing Gradle ==> [\xE2\x9C\x95] [Failure]\n"
+      echo "Cleaning Up..."
+      rm -rf $GRADLE_HOME
+      rm -rf gradle-$GRADLE_RELEASE_VERSION-bin.zip
+      exit 1
+    fi
+  fi
+else
+    printf "%s\t Installed Gradle Version $(gradle -v) ==> [\xE2\x9C\x94] [Exist]\n"
+fi
+
+# End
