@@ -14,6 +14,8 @@
         # cryptography
 # 3. Execute this script
 # Once execution is succeded, you will see a tar file under same directory path. This tar can be exported to install python modules on machine.
+# command to install packages from local source
+# 		pip install --no-index --find-links=file:/path/to/pymodules -r /path/to/requirements.txt
 
 which pip > /dev/null
 if [ $? -ne 0 ]; then
